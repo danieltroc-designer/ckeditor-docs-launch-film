@@ -1,0 +1,33 @@
+{
+  "name": "ckeditor-docs-launch-film",
+  "version": "1.0.0",
+  "description": "60-second launch film for CKEditor Docs in ChatGPT, built in code with Remotion",
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio",
+    "stills": "node scripts/stills.mjs",
+    "render": "bash scripts/scene.sh inside problem editor suggest team export logo",
+    "render:scene": "bash scripts/scene.sh",
+    "audio": "bash audio/build.sh",
+    "mix": "bash scripts/mix.sh",
+    "build": "npm run audio && npm run render && npm run mix",
+    "qa": "python3 scripts/qa_jitter.py out/CKEditor-Docs-launch-film.mp4"
+  },
+  "author": "Tiugo / CKEditor",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@fontsource/mulish": "^5.3.0",
+    "@fontsource/public-sans": "^5.3.0",
+    "@fontsource/saira-semi-condensed": "^5.3.0",
+    "@fontsource/source-code-pro": "^5.3.1",
+    "@remotion/bundler": "^4.0.540",
+    "@remotion/cli": "^4.0.540",
+    "@remotion/fonts": "^4.0.540",
+    "@remotion/media-utils": "^4.0.540",
+    "@remotion/renderer": "^4.0.540",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "remotion": "^4.0.540"
+  },
+  "private": true
+}
