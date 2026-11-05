@@ -12,9 +12,10 @@
 # Those warm-up frames are dropped when joining, so each chunk matches a single render of the scene.
 # RENDER_ONLY=1 stops after rendering the chunks (no ffmpeg needed); RESUME=1 keeps chunks that already
 # finished and renders only the rest, then blends. Keep CHUNK, PRE, FMT and SCALE the same between the two.
-# GL picks Chrome's renderer. Portrait formats default to swangle: with Chrome's default renderer the tall
-# 3D stage of 9x16 lost everything below a line after the Team pan (37.5-39.5 s). 16x9 keeps the default,
-# so the approved master renders exactly as before.
+# Portrait scenes listed in SOFTGL (default: team) render with --gl=swangle: with Chrome's default renderer
+# the tall 3D stage of the 9x16 Team scene lost everything below a line after its pan (37.5-39.5 s). Swangle
+# is several times slower, so other scenes keep the default renderer, and so does 16x9 (the approved master).
+# GL=<renderer> (or GL= for the default) forces one renderer for every scene.
 set -e
 cd "$(dirname "$0")/.."
 [ -n "$RENDER_ONLY" ] || command -v ffmpeg >/dev/null || { echo "ffmpeg not found. Install it first: brew install ffmpeg" >&2; exit 1; }
@@ -22,7 +23,7 @@ FMT=${FMT:-16x9}
 SCALE=${SCALE:-1}
 case $FMT in 16x9) SFX=""; OUT=out ;; 4x5|9x16) SFX="-$FMT"; OUT=out/$FMT ;; *) echo "unknown FMT=$FMT (use 16x9, 4x5 or 9x16)" >&2; exit 1 ;; esac
 [ "$SCALE" != 1 ] && OUT=out/$FMT-${SCALE}x
-[ "$FMT" = 16x9 ] && GL=${GL-} || GL=${GL-swangle}
+SOFTGL=${SOFTGL-team}
 mkdir -p $OUT/scenes/chunks
 ORDER="inside problem editor suggest team export logo"
 CHUNK=${CHUNK:-900}
@@ -33,10 +34,13 @@ JOBS=${JOBS:-$(( ($(sysctl -n hw.perflevel0.physicalcpu 2>/dev/null || getconf _
 params() {
   M=3; COMP=FilmSub$SFX; TM="tmix=frames=3,select='eq(mod(n\\,3)\\,2)'"
   case " ${HEAVY:-suggest} " in *" $1 "*) M=9; COMP=FilmSub9$SFX; TM="tmix=frames=6,select='eq(mod(n\\,9)\\,8)'";; esac
+  CGL=${GL-}
+  if [ -z "${GL+x}" ] && [ "$FMT" != 16x9 ]; then case " $SOFTGL " in *" $1 "*) CGL=swangle ;; esac; fi
 }
 
-render_chunk() { # <composition> <first>-<last> <output>
-  npx remotion render "$BUNDLE" "$1" "$3" --frames="$2" --concurrency=1 --crf=12 --jpeg-quality=95 --scale="$SCALE" ${GL:+--gl=$GL} --log=error --props='{"audio":false}'
+render_chunk() { # <composition> <first>-<last> <output> <gl or ->
+  local gl=$4; [ "$gl" = - ] && gl=
+  npx remotion render "$BUNDLE" "$1" "$3" --frames="$2" --concurrency=1 --crf=12 --jpeg-quality=95 --scale="$SCALE" ${gl:+--gl=$gl} --log=error --props='{"audio":false}'
   touch "$3.ok"
   echo "  done $(basename "$3" .sub.mp4)"
 }
@@ -59,11 +63,11 @@ if [ $# -gt 0 ]; then
       e=$(( s + step - 1 )); [ $e -gt $b ] && e=$b
       f=$OUT/scenes/chunks/$id.$(printf %03d $n).sub.mp4
       if [ $s -eq $a ]; then
-        job="$COMP $s-$e $f"
+        job="$COMP $s-$e $f ${CGL:--}"
       else # warm-up frames first: they sit at indices $pos..$pos+w of the joined stream
         p=$(( s - PRE )); [ $p -le $a ] && p=$(( a + 1 ))
         w=$(( s - p ))
-        job="$COMP $a,$p-$e $f"
+        job="$COMP $a,$p-$e $f ${CGL:--}"
         drop="$drop${drop:++}between(n\\,$pos\\,$(( pos + w )))"; pos=$(( pos + 1 + w ))
       fi
       if [ -n "$RESUME" ] && [ -f "$f.ok" ]; then :; else echo "$job" >> "$JOBLIST"; fi
@@ -72,10 +76,10 @@ if [ $# -gt 0 ]; then
       n=$(( n + 1 ))
     done
     if [ -n "$drop" ]; then printf '%s\n' "select='not($drop)'," > $OUT/scenes/chunks/$id.drop; else : > $OUT/scenes/chunks/$id.drop; fi
-    echo "render $id x$M sub-frames $a-$b in $n chunks${GL:+ (gl $GL)}"
+    echo "render $id x$M sub-frames $a-$b in $n chunks${CGL:+ (gl $CGL)}"
   done
   echo "rendering $(wc -l < "$JOBLIST" | tr -d ' ') chunks, $JOBS at a time"
-  export BUNDLE SCALE GL
+  export BUNDLE SCALE
   export -f render_chunk
   if [ -s "$JOBLIST" ]; then xargs -P "$JOBS" -L 1 bash -c 'render_chunk "$@"' _ < "$JOBLIST"; fi
   rm -f "$JOBLIST"
