@@ -4,12 +4,14 @@ import { AbsoluteFill, useCurrentFrame } from 'remotion';
 import { C, ink, pur, lim, F, E, tw, kf, drift, frameAt, shadow, clamp01, lerp, HL, HTOP, headRight } from '../theme';
 import { Chat, Editor as Ed, Page, Ins, Del, Card, Icon, Logo, Stage3D, Cam, Cursor, Ring, cursorAt, pressAt, Words, useMeasure, Toolbar, SlideBlur, slideSpeed } from '../ui';
 import { T, START, DUR, K } from '../timeline';
+import { useFmt, hlStyle, headDock, dockMove, framer } from '../format';
 
-const WX = 210, WY = 70, WW = 1500, WH = 940;
-const APP = { x: 110, y: 60, w: 1700, h: 960 };
+// per format: chat window [x, y, w, h] and the web app rect it grows into
+const GEO = { land: [210, 70, 1500, 940], post: [20, 95, 1040, 1160], tall: [20, 380, 1040, 1160] };
+const APPS = { land: { x: 110, y: 60, w: 1700, h: 960 }, post: { x: 40, y: 80, w: 1000, h: 1190 }, tall: { x: 40, y: 330, w: 1000, h: 1260 } };
 const ROWS = [['Today, 16:40', 'Anna', 'Accepted 4 suggestions'], ['Today, 15:12', 'Tom', '2 AI-generated suggestions'], ['Today, 14:55', 'Priya', '2 AI-generated comments'], ['Today, 11:02', 'Anna', 'Drafted the policy with AI']];
 
-const WebApp = ({ f, t, menuP, toastP }) => (
+const WebApp = ({ f, t, menuP, toastP, APP, portrait }) => (
   <div style={{ position: 'absolute', left: 0, top: 0, width: APP.w, height: APP.h, background: C.bg, borderRadius: 26, overflow: 'hidden', boxShadow: `0 0 0 1px ${ink(0.08)}, ${shadow(1.2)}`, fontFamily: F.ui, color: C.ink }}>
     <div style={{ height: 76, background: C.white, display: 'flex', alignItems: 'center', gap: 18, padding: '0 30px', borderBottom: `1px solid ${ink(0.07)}` }}>
       <Logo h={24} />
@@ -25,14 +27,14 @@ const WebApp = ({ f, t, menuP, toastP }) => (
     <div style={{ position: 'absolute', left: 0, top: 76, right: 0, height: 48, background: C.white, borderBottom: `1px solid ${ink(0.07)}` }}>
       <Toolbar />
     </div>
-    <div style={{ position: 'absolute', left: 48, top: 170, width: 260, fontSize: 16, lineHeight: 2.1, color: ink(0.6) }}>
+    <div style={{ position: 'absolute', left: 48, top: 170, width: 260, fontSize: 16, lineHeight: 2.1, color: ink(0.6), display: portrait ? 'none' : undefined }}>
       <div style={{ color: C.ink, fontWeight: 600 }}>Travel policy 2027</div>
       <div style={{ paddingLeft: 14 }}>Summary</div>
       <div style={{ paddingLeft: 14 }}>1. Booking</div>
       <div style={{ paddingLeft: 14, color: C.purple }}>2. Reimbursement</div>
       <div style={{ paddingLeft: 14 }}>3. Approvals</div>
     </div>
-    <div style={{ position: 'absolute', left: 400, top: 160, width: 900, height: 900, background: C.white, borderRadius: 10, boxShadow: `0 0 0 1px ${ink(0.07)}, 0 24px 60px -30px ${ink(0.3)}`, padding: '60px 72px', boxSizing: 'border-box' }}>
+    <div style={{ position: 'absolute', left: portrait ? (APP.w - 900) / 2 : 400, top: 160, width: 900, height: portrait ? APP.h - 220 : 900, background: C.white, borderRadius: 10, boxShadow: `0 0 0 1px ${ink(0.07)}, 0 24px 60px -30px ${ink(0.3)}`, padding: '60px 72px', boxSizing: 'border-box' }}>
       <Page mk={null} o={{ hotel: '€160', meals: '€55' }} />
     </div>
     {/* export menu */}
@@ -61,7 +63,12 @@ export const Export = () => {
   const d = drift(g, 1, 6.2);
   const [ref, m] = useMeasure();
   const [href, hm] = useMeasure();
-  const TL = headRight(hm);
+  const fm = useFmt();
+  const fa = framer(fm);
+  const [WX, WY, WW, WH] = GEO[fm.id];
+  const APP = APPS[fm.id];
+  const dock = headDock(fm, hm, 3);
+  const mv = dockMove(fm, dock, APP.x, APP.y, APP.w, APP.h);
   const cd = Math.max(0, t.recede[0] + 0.8 * (t.recede[1] - t.recede[0]) - t.words[0]);
 
   const aa = tw(f, t.acceptAll + 4, t.acceptAll + 28, 0, 1, E.inOut);
@@ -93,7 +100,9 @@ export const Export = () => {
     cur = { cx, cy, press: pressAt(f, [t.acceptAll, t.hist, t.expand, t.exportBtn, t.word]) };
   }
   // camera: on the editor header first, then whole
-  const cam = kf(f, [[0, frameAt(1130, 420, 1.24)], [t.hist + 10, frameAt(1150, 430, 1.24)], [t.expand + 4, frameAt(1150, 430, 1.24)], [t.grow[1], frameAt(960, 535, 1.06)], [t.recede[0], frameAt(960, 540, 1.09)], [t.recede[1], frameAt(960, 540, 1)]]);
+  const cam = fm.portrait
+    ? kf(f, [[0, fa(WX + WW - 380, WY + 360, 1.3)], [t.hist + 10, fa(WX + WW - 360, WY + 380, 1.3)], [t.expand + 4, fa(WX + WW - 360, WY + 380, 1.3)], [t.grow[1], fa(APP.x + APP.w / 2, APP.y + APP.h / 2, 1.02)], [t.recede[0], fa(fm.W / 2, fm.H / 2, 1.05)], [t.recede[1], fa(fm.W / 2, fm.H / 2, 1)]])
+    : kf(f, [[0, frameAt(1130, 420, 1.24)], [t.hist + 10, frameAt(1150, 430, 1.24)], [t.expand + 4, frameAt(1150, 430, 1.24)], [t.grow[1], frameAt(960, 535, 1.06)], [t.recede[0], frameAt(960, 540, 1.09)], [t.recede[1], frameAt(960, 540, 1)]]);
 
   // chat fades as the web app takes over; app grows from the chat window rect
   const appRect = {
@@ -101,14 +110,14 @@ export const Export = () => {
     y: lerp(WY, APP.y, grow),
     s: lerp(WW / APP.w, 1, grow),
   };
-  const grp = { x: recede * (TL - APP.x), y: recede * (150 - APP.y), s: 1, ry: -recede * 15, rx: recede * 3 };
+  const grp = { x: recede * mv.x, y: recede * mv.y, s: 1 + recede * (mv.s - 1), ry: -recede * 15, rx: recede * 3 };
 
   return (
     <AbsoluteFill style={{ background: C.bg }}>
-      <SlideBlur id="sb-export" v={slideSpeed(f, t.recede, TL - APP.x, K.export, E.inOut)}><Stage3D persp={2200}>
+      <SlideBlur id="sb-export" v={slideSpeed(f, t.recede, dock.x - APP.x, K.export, E.inOut)}><Stage3D persp={2200}>
         <Cam x={cam.x + d.x} y={cam.y + d.y} z={cam.z * d.s}>
-          <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d', transform: `translate(${grp.x}px, ${grp.y}px) scale(${grp.s}) rotateY(${grp.ry}deg) rotateX(${grp.rx}deg)`, transformOrigin: `${APP.x}px 540px` }}>
-            <div ref={ref} style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, opacity: 1 - tw(f, t.grow[0] + 6, t.grow[0] + 26) }}>
+          <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d', transform: `translate(${grp.x}px, ${grp.y}px) scale(${grp.s}) rotateY(${grp.ry}deg) rotateX(${grp.rx}deg)`, transformOrigin: fm.portrait ? `${APP.x}px ${APP.y}px` : `${APP.x}px 540px` }}>
+            <div ref={ref} style={{ position: 'absolute', left: 0, top: 0, width: fm.W, height: fm.H, opacity: 1 - tw(f, t.grow[0] + 6, t.grow[0] + 26) }}>
               <Chat x={WX} y={WY} w={WW} h={WH} title="Travel policy" who="anna">
                 <div style={{ position: 'relative' }}>
                   <Ed
@@ -126,6 +135,7 @@ export const Export = () => {
                       </>
                     }
                     page={page}
+                    sideW={fm.portrait ? 260 : 300}
                   />
                   {/* revision history panel */}
                   <div style={{ position: 'absolute', right: 0, top: 104, bottom: 0, width: 380, background: C.white, borderLeft: `1px solid ${ink(0.08)}`, padding: '22px 20px', boxSizing: 'border-box', opacity: histP, transform: `translateX(${(1 - histP) * 40}px)`, fontFamily: F.ui }}>
@@ -145,7 +155,7 @@ export const Export = () => {
             </div>
             {grow > 0 ? (
               <div style={{ position: 'absolute', left: appRect.x, top: appRect.y, transform: `scale(${appRect.s})`, transformOrigin: '0 0', opacity: tw(f, t.grow[0], t.grow[0] + 16) }}>
-                <WebApp f={f} t={t} menuP={menuP} toastP={toastP} />
+                <WebApp f={f} t={t} menuP={menuP} toastP={toastP} APP={APP} portrait={fm.portrait} />
               </div>
             ) : null}
             {cur ? <Ring x={cur.cx} y={cur.cy} f={f} at={t.acceptAll} /> : null}
@@ -157,7 +167,7 @@ export const Export = () => {
           </div>
         </Cam>
       </Stage3D></SlideBlur>
-      <div ref={href} style={{ ...HL, top: HTOP[3] }}>
+      <div ref={href} style={{ ...hlStyle(fm, 3) }}>
         <div data-m="head" style={{ display: 'inline-block' }}>
           <div><Words text="Reviewed." f={f} at={t.words[0] + cd} /></div>
           <div><Words text="Approved." f={f} at={t.words[1] + cd} /></div>

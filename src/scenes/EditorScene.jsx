@@ -4,10 +4,10 @@ import { AbsoluteFill, useCurrentFrame } from 'remotion';
 import { C, ink, F, E, tw, kf, drift, frameAt, HL, HTOP, headRight } from '../theme';
 import { Chat, Editor as Ed, Bubble, Mention, Words, Stage3D, Cam, Cursor, cursorAt, DRAFT, Page, useMeasure, SlideBlur, slideSpeed } from '../ui';
 import { T, START, DUR, P, typed, K } from '../timeline';
+import { useFmt, hlStyle, headDock, dockMove, framer } from '../format';
 
-// chat window geometry
-const WX = 210, WY = 70, WW = 1500, WH = 940;
-const FEED = 520; // earlier messages sit just above the composer
+// chat window geometry per format: [x, y, w, h]
+const GEO = { land: [210, 70, 1500, 940], post: [90, 175, 900, 1000], tall: [90, 460, 900, 1000] };
 const sh = (r, d) => ({ ...r, y: r.y + d, cy: r.cy + d });
 
 export const Editor = () => {
@@ -17,7 +17,11 @@ export const Editor = () => {
   const d = drift(g, 1, 2.9);
   const [ref, m] = useMeasure();
   const [href, hm] = useMeasure();
-  const TL = headRight(hm);
+  const fm = useFmt();
+  const [WX, WY, WW, WH] = GEO[fm.id];
+  const FEED = WH - 420; // earlier messages sit just above the composer (520 in 16:9)
+  const dock = headDock(fm, hm, 3);
+  const mv = dockMove(fm, dock, WX, WY, WW, WH);
   const cap = Math.max(t.caption, t.recede[0] + 0.8 * (t.recede[1] - t.recede[0]));
 
   const input = f < t.send ? typed(P.editor, t.type, f) : '';
@@ -38,10 +42,11 @@ export const Editor = () => {
     const tb = sh(m.toolbar, SC);
     const tab = sh(m.table, SC);
     m.hotel = sh(m.hotel, 0);
-    const c0 = frameAt(comp[0], (m.prior.y + comp[1]) / 2 + 20, 1.32, 960, 560);
-    const c1 = frameAt(960, 540, 1);
-    const c2 = frameAt(tb.x + 330, tb.cy + 40, 1.95, 960, 470);
-    const c3 = frameAt(tab.cx, tab.cy + 70, 1.42, 960, 540);
+    const fa = framer(fm);
+    const c0 = fm.portrait ? fa(WX + WW / 2, WY + WH / 2, 1.18) : frameAt(comp[0], (m.prior.y + comp[1]) / 2 + 20, 1.32, 960, 560);
+    const c1 = fm.portrait ? fa(fm.W / 2, WY + WH / 2, 1.04) : frameAt(960, 540, 1);
+    const c2 = fm.portrait ? fa(tb.x + 300, tb.cy + 60, 1.7) : frameAt(tb.x + 330, tb.cy + 40, 1.95, 960, 470);
+    const c3 = fm.portrait ? fa(tab.cx, tab.cy + 70, 1.38) : frameAt(tab.cx, tab.cy + 70, 1.42, 960, 540);
     cam = kf(f, [
       [0, c0],
       [t.pull[0], c0],
@@ -71,9 +76,9 @@ export const Editor = () => {
   // window group: recedes to the right, tilting away
   const tilt = kf(f, [[0, 20], [t.send, 6, E.soft], [t.pull[1], 0, E.inOut]]);
   const grp = {
-    x: recede * (TL - WX),
-    y: recede * (150 - WY),
-    s: 1,
+    x: recede * mv.x,
+    y: recede * mv.y,
+    s: 1 + recede * (mv.s - 1),
     ry: -recede * 15,
     rx: recede * 3 + tilt,
   };
@@ -81,19 +86,19 @@ export const Editor = () => {
 
   return (
     <AbsoluteFill style={{ background: C.bg }}>
-      <SlideBlur id="sb-editor" v={slideSpeed(f, t.recede, TL - WX, K.editor, E.inOut)}><Stage3D persp={2200}>
+      <SlideBlur id="sb-editor" v={slideSpeed(f, t.recede, dock.x - WX, K.editor, E.inOut)}><Stage3D persp={2200}>
         <Cam x={cam.x + d.x} y={cam.y + d.y} z={cam.z * d.s}>
           <div
             style={{
               position: 'absolute',
               inset: 0,
               transform: `translate(${grp.x}px, ${grp.y + (1 - enter) * 50}px) scale(${grp.s}) rotateY(${grp.ry}deg) rotateX(${grp.rx}deg)`,
-              transformOrigin: recede > 0 ? `${WX}px 540px` : '960px 953px',
+              transformOrigin: recede > 0 ? (fm.portrait ? `${WX}px ${WY}px` : `${WX}px 540px`) : `${fm.W / 2}px ${fm.H - 127}px`,
               transformStyle: 'preserve-3d',
               opacity: enter,
             }}
           >
-            <div ref={ref} style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080 }}>
+            <div ref={ref} style={{ position: 'absolute', left: 0, top: 0, width: fm.W, height: fm.H }}>
               <Chat x={WX} y={WY} w={WW} h={WH} title="Travel policy" who="anna" input={input} caret={f < t.send} f={f} send={tw(f, t.send - 4, t.send) * (1 - tw(f, t.send, t.send + 8))} feedY={FEED} scrollY={scroll}>
                 <div data-m="prior" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                   <Bubble>We need a travel policy that legal can sign off by Friday.</Bubble>
@@ -111,8 +116,8 @@ export const Editor = () => {
           </div>
         </Cam>
       </Stage3D></SlideBlur>
-      <div style={{ position: 'absolute', left: 92, top: 74, fontFamily: F.mono, fontWeight: 500, fontSize: 26, letterSpacing: "0.22em", color: C.purple, opacity: tw(f, 4, 24) * (1 - tw(f, 150, 180)) }}>AFTER</div>
-      <div ref={href} style={{ ...HL, top: HTOP[3], transform: `translateX(${d.x * 0.3}px)` }}>
+      <div style={{ position: 'absolute', left: fm.portrait ? 90 : 92, top: fm.portrait ? WY - 62 : 74, fontFamily: F.mono, fontWeight: 500, fontSize: 26, letterSpacing: "0.22em", color: C.purple, opacity: tw(f, 4, 24) * (1 - tw(f, 150, 180)) }}>AFTER</div>
+      <div ref={href} style={{ ...hlStyle(fm, 3), transform: `translateX(${d.x * 0.3}px)` }}>
         <div data-m="head" style={{ display: 'inline-block' }}>
           <div><Words text="A full document" f={f} at={cap} stagger={5} dur={40} /></div>
           <div><Words text="editor in your" f={f} at={cap + 12} stagger={5} dur={40} /></div>

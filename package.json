@@ -11,7 +11,8 @@
     "audio": "bash audio/build.sh",
     "mix": "bash scripts/mix.sh",
     "build": "npm run audio && npm run render && npm run mix",
-    "qa": "python3 scripts/qa_jitter.py out/CKEditor-Docs-launch-film.mp4"
+    "qa": "python3 scripts/qa_jitter.py out/CKEditor-Docs-launch-film.mp4",
+    "render:all": "bash scripts/render_all.sh"
   },
   "author": "Tiugo / CKEditor",
   "license": "UNLICENSED",

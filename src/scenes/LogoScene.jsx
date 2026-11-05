@@ -4,6 +4,7 @@ import { AbsoluteFill, Img, staticFile, useCurrentFrame, spring, useVideoConfig 
 import { C, ink, lim, F, E, tw, drift, shadow } from '../theme';
 import { Words } from '../ui';
 import { T, START, DUR } from '../timeline';
+import { useFmt } from '../format';
 
 const H = 92; // logo height
 const LW = (131 / 25) * H; // logo width
@@ -34,13 +35,14 @@ export const LogoScene = () => {
   const oIcon = tw(f, o0 + 32, o0 + 54, 0, 1, E.in);
 
   const total = LW + H * 0.26 + H * 2.05;
-  const left = 960 - total / 2;
-  const top = 392;
+  const fm = useFmt();
+  const left = fm.W / 2 - total / 2;
+  const top = fm.H / 2 - 148;
   const push = 1 + tw(f, 0, DUR.logo, 0, 0.03, E.lin);
 
   return (
     <AbsoluteFill style={{ background: C.bg }}>
-      <AbsoluteFill style={{ transform: `translate(${d.x}px, ${d.y}px) scale(${push})`, transformOrigin: '960px 500px' }}>
+      <AbsoluteFill style={{ transform: `translate(${d.x}px, ${d.y}px) scale(${push})`, transformOrigin: `${fm.W / 2}px ${fm.H / 2 - 40}px` }}>
         {/* lockup */}
         <div style={{ position: 'absolute', left, top, height: H, width: total }}>
           <div style={{ position: 'absolute', left: 0, top: 0, width: LW, height: H, transformOrigin: `${(10 / 131) * LW}px ${H / 2}px`, transform: `scale(${icon * (1 - oIcon)}) rotate(${(1 - icon) * -50 + oIcon * 40}deg)` }}>

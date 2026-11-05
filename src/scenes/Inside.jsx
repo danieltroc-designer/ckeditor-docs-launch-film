@@ -4,6 +4,7 @@ import { AbsoluteFill, useCurrentFrame } from 'remotion';
 import { C, ink, F, E, tw, kf, drift, shadow, lim, HL, HTOP, headRight } from '../theme';
 import { Chat, Editor, Page, Ins, Del, FINAL, Words, Bubble, Mention, Stage3D, Cam, Card, useMeasure } from '../ui';
 import { T, START, DUR } from '../timeline';
+import { useFmt, pf, hlStyle, headDock } from '../format';
 
 export const Inside = () => {
   const f = useF();
@@ -12,7 +13,9 @@ export const Inside = () => {
   const S = t.sugg.map((a) => tw(f, a, a + 26, 0, 1, E.out));
   const d = drift(g, 1, 0.4);
   const [href, hm] = useMeasure();
+  const fm = useFmt();
   const TL = headRight(hm) + 24; // window settles ~24px left of here
+  const dock = headDock(fm, hm, 2); // portrait: the window sits below the headline
 
   const page = (
     <Page
@@ -64,8 +67,8 @@ export const Inside = () => {
       <Stage3D persp={2000}>
         <Cam x={d.x} y={d.y} z={camZ * d.s} rz={d.r * 0.3}>
           {/* the app */}
-          <div style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, transform: `translateX(${wx}px) rotateY(${ry}deg) rotateX(${rx}deg)`, transformOrigin: `${TL}px 540px`, transformStyle: 'preserve-3d' }}>
-            <Chat x={TL} y={150} w={1120} h={960} title="Travel policy" who="anna">
+          <div style={{ position: 'absolute', left: 0, top: 0, width: fm.W, height: fm.H, transform: fm.portrait ? `translateY(${wx}px) rotateY(${ry * 0.7}deg) rotateX(${rx}deg)` : `translateX(${wx}px) rotateY(${ry}deg) rotateX(${rx}deg)`, transformOrigin: fm.portrait ? `${dock.x}px ${dock.y}px` : `${TL}px 540px`, transformStyle: 'preserve-3d' }}>
+            <Chat x={fm.portrait ? dock.x : TL} y={fm.portrait ? dock.y + 24 : 150} w={1120} h={fm.portrait ? fm.H - dock.y + 60 : 960} title="Travel policy" who="anna">
               <Bubble>
                 <Mention text="@CKEditor Docs tighten the whole policy as suggestions." />
               </Bubble>
@@ -76,8 +79,8 @@ export const Inside = () => {
           <div
             style={{
               position: 'absolute',
-              left: 700,
-              top: 930,
+              left: pf(fm, 700, { post: 150, tall: 150 }),
+              top: pf(fm, 930, { post: fm.H - 210, tall: fm.H - 420 }),
               transform: `translateZ(120px) translateY(${(1 - countP) * 30}px)`,
               opacity: countP,
               background: C.white,
@@ -99,7 +102,7 @@ export const Inside = () => {
         </Cam>
       </Stage3D>
       {/* headline, in its own calm plane */}
-      <div ref={href} style={{ ...HL, top: HTOP[2], transform: `translate(${d.x * 0.4}px, ${-f * 0.03}px)` }}>
+      <div ref={href} style={{ ...hlStyle(fm, 2), transform: `translate(${d.x * 0.4}px, ${-f * 0.03}px)` }}>
         <div data-m="head" style={{ display: 'inline-block' }}>
         <div>Manage documents</div>
         <div style={{ position: 'relative', display: 'inline-block' }}>

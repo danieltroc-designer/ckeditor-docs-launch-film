@@ -1,6 +1,7 @@
 import React from 'react';
 import { AbsoluteFill, Img, staticFile } from 'remotion';
 import { C, ink, pur, lim, F, E, tw, clamp01, shadow } from './theme';
+import { useFmt } from './format';
 
 // ---------- hand-drawn line icons (20px grid) ----------
 const P = {
@@ -509,18 +510,21 @@ export const Tag = ({ children, who }) => {
 export const Stage3D = ({ children, persp = 2400 }) => (
   <AbsoluteFill style={{ perspective: persp, perspectiveOrigin: '50% 45%' }}>{children}</AbsoluteFill>
 );
-export const Cam = ({ x = 0, y = 0, z = 1, rx = 0, ry = 0, rz = 0, children, style }) => (
-  <AbsoluteFill
-    style={{
-      transform: `translate(${x}px,${y}px) scale(${z}) rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg)`,
-      transformOrigin: '960px 540px',
-      transformStyle: 'preserve-3d',
-      ...style,
-    }}
-  >
-    {children}
-  </AbsoluteFill>
-);
+export const Cam = ({ x = 0, y = 0, z = 1, rx = 0, ry = 0, rz = 0, children, style }) => {
+  const fm = useFmt();
+  return (
+    <AbsoluteFill
+      style={{
+        transform: `translate(${x}px,${y}px) scale(${z}) rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg)`,
+        transformOrigin: `${fm.W / 2}px ${fm.H / 2}px`,
+        transformStyle: 'preserve-3d',
+        ...style,
+      }}
+    >
+      {children}
+    </AbsoluteFill>
+  );
+};
 
 // scene-level fade through background
 export const sceneFade = (f, dur, inLen = 16, outLen = 16) =>

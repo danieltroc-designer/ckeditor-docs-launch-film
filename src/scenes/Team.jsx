@@ -4,11 +4,15 @@ import { AbsoluteFill, useCurrentFrame } from 'remotion';
 import { C, ink, F, E, tw, kf, drift, frameAt, shadow, clamp01, HL, HTOP, headRight } from '../theme';
 import { Chat, Editor as Ed, Page, Ins, Del, Hl, Card, Tag, Avatar, Bubble, Stage3D, Cam, Words, useMeasure, FINAL, SlideBlur, slideSpeed } from '../ui';
 import { T, START, P, typed, K } from '../timeline';
+import { useFmt, hlStyle, headDock, dockMove, framer } from '../format';
 
-const BIG = { x: 310, y: 70, w: 1300, h: 940 };
-const SM = { tom: 30, anna: 660, priya: 1290, y: 200, w: 600, h: 720 };
-const BS = -168; // editor body scroll in Anna's window
-const INNER = (BIG.w - 76) * 0.88; // editor width in the big window
+// per format: Anna's shared document window (BIG) and the three seats [x, y] with the seat size.
+// 16:9 seats sit side by side; portrait seats stack top to bottom in a gentle zig-zag.
+const LAYOUT = {
+  land: { BIG: { x: 310, y: 70, w: 1300, h: 940 }, seat: { tom: [30, 200], anna: [660, 200], priya: [1290, 200] }, w: 600, h: 720, BS: -168 },
+  post: { BIG: { x: 20, y: 95, w: 1040, h: 1160 }, seat: { tom: [50, 96], anna: [390, 518], priya: [50, 940] }, w: 640, h: 340, BS: 0 },
+  tall: { BIG: { x: 20, y: 380, w: 1040, h: 1160 }, seat: { tom: [40, 160], anna: [280, 762], priya: [40, 1364] }, w: 760, h: 500, BS: 0 },
+};
 
 const Mini = () => (
   <div style={{ width: '166%', transform: 'scale(.6)', transformOrigin: '0 0' }}>
@@ -34,7 +38,18 @@ export const Team = () => {
   const d = drift(g, 1, 5.3);
   const [ref, m] = useMeasure();
   const [href, hm] = useMeasure();
-  const TL = headRight(hm);
+  const fm = useFmt();
+  const fa = framer(fm);
+  const { BIG, seat, BS } = LAYOUT[fm.id];
+  const SM = { tom: seat.tom[0], anna: seat.anna[0], priya: seat.priya[0], y: seat.anna[1], w: LAYOUT[fm.id].w, h: LAYOUT[fm.id].h };
+  const sy = (who) => seat[who][1];
+  const ctr = (who) => [seat[who][0] + SM.w / 2, seat[who][1] + SM.h / 2];
+  const INNER = (BIG.w - 76) * 0.88; // editor width in the big window
+  const BH = BIG.h - 300; // editor body height (640 in 16:9)
+  const zLook = fm.portrait ? fm.W / (SM.w + 120) : 1.3;
+  const dock = headDock(fm, hm, 3);
+  const mv = dockMove(fm, dock, BIG.x, BIG.y, BIG.w, BIG.h);
+  const SW = fm.portrait ? 260 : 340; // comment column width
   const cap = Math.max(t.caption, t.recede[0] + 0.8 * (t.recede[1] - t.recede[0]));
 
   const enter = [0, 8, 16].map((o) => tw(f, o, o + 46, 0, 1, E.out));
@@ -55,13 +70,21 @@ export const Team = () => {
   );
 
   let cards = <div />, targets = null, cam = frameAt(330, 560, 1.28);
-  const camKeys = [
-    [0, frameAt(SM.tom + SM.w / 2, 525, 1.3)],
-    [t.look[0], frameAt(SM.tom + SM.w / 2, 525, 1.3)],
-    [t.look[1], frameAt(SM.priya + SM.w / 2, 525, 1.3), E.inOut],
-    [t.wide[0], frameAt(SM.priya + SM.w / 2, 525, 1.3)],
-    [t.wide[1], frameAt(960, 560, 1), E.inOut],
-  ];
+  const camKeys = fm.portrait
+    ? [
+        [0, fa(...ctr('tom'), zLook)],
+        [t.look[0], fa(...ctr('tom'), zLook)],
+        [t.look[1], fa(...ctr('priya'), zLook), E.inOut],
+        [t.wide[0], fa(...ctr('priya'), zLook)],
+        [t.wide[1], fa(fm.W / 2, fm.H / 2, 1), E.inOut],
+      ]
+    : [
+        [0, frameAt(SM.tom + SM.w / 2, 525, 1.3)],
+        [t.look[0], frameAt(SM.tom + SM.w / 2, 525, 1.3)],
+        [t.look[1], frameAt(SM.priya + SM.w / 2, 525, 1.3), E.inOut],
+        [t.wide[0], frameAt(SM.priya + SM.w / 2, 525, 1.3)],
+        [t.wide[1], frameAt(960, 560, 1), E.inOut],
+      ];
   if (m && m.side && m.hotel && m.meals && m.booking && m.li2) {
     const SD = m.side;
     const order = [['p1', m.booking.y], ['t1', m.hotel.y], ['t2', m.meals.y], ['p2', m.li2.y]];
@@ -94,24 +117,30 @@ export const Team = () => {
       p2: [m.li2.x + 240, m.li2.cy + BS],
       reply: [SD.x + SD.w / 2, SD.y + tops.r + 34 + BS],
     };
-    const cP = frameAt((m.booking.x + SD.x + SD.w) / 2, targets.reply[1] - 105, 1.58);
-    camKeys.push([t.push[0], frameAt(960, 540, 1)], [t.push[1], cP, E.inOut], [t.sendR + 12, cP], [t.recede[1], frameAt(960, 540, 1), E.inOut]);
+    const cP = fm.portrait ? fa((m.booking.x + SD.x + SD.w) / 2, targets.reply[1] - 60, 1.27) : frameAt((m.booking.x + SD.x + SD.w) / 2, targets.reply[1] - 105, 1.58);
+    const c1 = fm.portrait ? fa(fm.W / 2, fm.H / 2, 1) : frameAt(960, 540, 1);
+    camKeys.push([t.push[0], c1], [t.push[1], cP, E.inOut], [t.sendR + 12, cP], [t.recede[1], c1, E.inOut]);
   }
   cam = kf(f, camKeys);
   if (f > t.look[0] && f < t.look[1]) {
     // one smooth move with a gentle pull-back in the middle, so the pan never gets fast enough to strobe
     const p = E.inOut(tw(f, t.look[0], t.look[1]));
-    cam = frameAt(SM.tom + SM.w / 2 + (SM.priya - SM.tom) * p, 525, 1.3 - 0.2 * Math.sin(Math.PI * p));
+    cam = fm.portrait
+      ? fa(ctr('tom')[0] + (ctr('priya')[0] - ctr('tom')[0]) * p, ctr('tom')[1] + (ctr('priya')[1] - ctr('tom')[1]) * p, zLook - 0.2 * Math.sin(Math.PI * p))
+      : frameAt(SM.tom + SM.w / 2 + (SM.priya - SM.tom) * p, 525, 1.3 - 0.2 * Math.sin(Math.PI * p));
   }
 
   // the colleagues' windows fan out a little, then fall back into depth
   const side = (who) => {
     const dir = who === 'tom' ? -1 : 1;
     const e = enter[who === 'tom' ? 0 : 2];
+    const [sx, sy0] = seat[who];
     return {
       opacity: e * (1 - reg * 0.3) * (1 - recede),
-      transform: `translateX(${dir * reg * 150}px) translateY(${(1 - e) * 40}px) translateZ(${-reg * 700}px) rotateY(${dir * -(6 + reg * 8)}deg)`,
-      transformOrigin: who === 'tom' ? `${SM.tom + SM.w}px 560px` : `${SM.priya}px 560px`,
+      transform: fm.portrait
+        ? `translateY(${dir * reg * 150 + (1 - e) * 40}px) translateZ(${-reg * 700}px) rotateX(${dir * (4 + reg * 6)}deg)`
+        : `translateX(${dir * reg * 150}px) translateY(${(1 - e) * 40}px) translateZ(${-reg * 700}px) rotateY(${dir * -(6 + reg * 8)}deg)`,
+      transformOrigin: fm.portrait ? (who === 'tom' ? `${sx + SM.w / 2}px ${sy0 + SM.h}px` : `${sx + SM.w / 2}px ${sy0}px`) : who === 'tom' ? `${SM.tom + SM.w}px 560px` : `${SM.priya}px 560px`,
       filter: reg > 0.01 ? `blur(${reg * 7}px)` : undefined,
     };
   };
@@ -121,11 +150,11 @@ export const Team = () => {
   const bubP = tw(f, t.sendP + 2, t.sendP + 30);
   const AR = {
     x: SM.anna + (BIG.x - SM.anna) * reg,
-    y: SM.y + (BIG.y - SM.y) * reg,
+    y: sy('anna') + (BIG.y - sy('anna')) * reg,
     w: SM.w + (BIG.w - SM.w) * reg,
     h: SM.h + (BIG.h - SM.h) * reg,
   };
-  const grp = { x: recede * (TL - BIG.x), y: recede * (150 - BIG.y), s: 1, ry: -recede * 15, rx: recede * 3 };
+  const grp = { x: recede * mv.x, y: recede * mv.y, s: 1 + recede * (mv.s - 1), ry: -recede * 15, rx: recede * 3 };
 
   const flies = targets
     ? [
@@ -137,7 +166,7 @@ export const Team = () => {
         const p = clamp01((f - at) / 46);
         if (f < at || p >= 1) return null;
         const e = E.inOut(p);
-        const from = who === 'tom' ? [210, 700] : [1710, 700];
+        const from = fm.portrait ? ctr(who) : who === 'tom' ? [210, 700] : [1710, 700];
         const to = targets[k];
         const x = from[0] + (to[0] - from[0]) * e;
         const y = from[1] + (to[1] - from[1]) * e - Math.sin(e * Math.PI) * 180;
@@ -155,30 +184,30 @@ export const Team = () => {
 
   return (
     <AbsoluteFill style={{ background: C.bg }}>
-      <SlideBlur id="sb-team" v={slideSpeed(f, t.recede, TL - BIG.x, K.team, E.inOut)}><Stage3D persp={2200}>
+      <SlideBlur id="sb-team" v={slideSpeed(f, t.recede, dock.x - BIG.x, K.team, E.inOut)}><Stage3D persp={2200}>
         <Cam x={cam.x + d.x} y={cam.y + d.y} z={cam.z * d.s}>
-          <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d', transform: `translate(${grp.x}px, ${grp.y}px) scale(${grp.s}) rotateY(${grp.ry}deg) rotateX(${grp.rx}deg)`, transformOrigin: `${BIG.x}px 540px` }}>
+          <div style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d', transform: `translate(${grp.x}px, ${grp.y}px) scale(${grp.s}) rotateY(${grp.ry}deg) rotateX(${grp.rx}deg)`, transformOrigin: fm.portrait ? `${BIG.x}px ${BIG.y}px` : `${BIG.x}px 540px` }}>
             <div style={{ position: 'absolute', inset: 0, ...side('tom') }}>
-              <Chat x={SM.tom} y={SM.y} w={SM.w} h={SM.h} title="Travel policy" who="tom" input={tomIn} caret={f < t.sendT} f={f} feedY={-bubT * 80}>
+              <Chat x={SM.tom} y={sy('tom')} w={SM.w} h={SM.h} title="Travel policy" who="tom" input={tomIn} caret={f < t.sendT} f={f} feedY={-bubT * 80}>
                 <Mini />
               </Chat>
-              <div style={{ position: 'absolute', left: SM.tom + 100, width: SM.w - 130, top: SM.y + SM.h - 196, display: 'flex', flexDirection: 'column', fontFamily: F.ui, fontSize: 20, color: C.ink }}>
+              <div style={{ position: 'absolute', left: SM.tom + 100, width: SM.w - 130, top: sy('tom') + SM.h - 196, display: 'flex', flexDirection: 'column', fontFamily: F.ui, fontSize: 20, color: C.ink }}>
                 <Bubble p={bubT}>{P.tom}</Bubble>
               </div>
-              <Person who="tom" name="Tom" role="Finance" x={SM.tom + 30} y={SM.y - 82} p={tw(f, 10, 40)} />
+              <Person who="tom" name="Tom" role="Finance" x={SM.tom + 30} y={sy('tom') - 82} p={tw(f, 10, 40)} />
             </div>
             <div style={{ position: 'absolute', inset: 0, ...side('priya') }}>
-              <Chat x={SM.priya} y={SM.y} w={SM.w} h={SM.h} title="Travel policy" who="priya" input={priIn} caret={f > t.sendT && f < t.sendP} f={f} feedY={-bubP * 80}>
+              <Chat x={SM.priya} y={sy('priya')} w={SM.w} h={SM.h} title="Travel policy" who="priya" input={priIn} caret={f > t.sendT && f < t.sendP} f={f} feedY={-bubP * 80}>
                 <Mini />
               </Chat>
-              <div style={{ position: 'absolute', left: SM.priya + 100, width: SM.w - 130, top: SM.y + SM.h - 196, display: 'flex', flexDirection: 'column', fontFamily: F.ui, fontSize: 20, color: C.ink }}>
+              <div style={{ position: 'absolute', left: SM.priya + 100, width: SM.w - 130, top: sy('priya') + SM.h - 196, display: 'flex', flexDirection: 'column', fontFamily: F.ui, fontSize: 20, color: C.ink }}>
                 <Bubble p={bubP}>{P.priya}</Bubble>
               </div>
-              <Person who="priya" name="Priya" role="Legal" x={SM.priya + 30} y={SM.y - 82} p={tw(f, 22, 52)} />
+              <Person who="priya" name="Priya" role="Legal" x={SM.priya + 30} y={sy('priya') - 82} p={tw(f, 22, 52)} />
             </div>
             {/* Anna: one window that grows from her seat into the shared document */}
             <div style={{ position: 'absolute', inset: 0, opacity: enter[1], transform: `translateY(${(1 - enter[1]) * 40}px) translateZ(${-60 * (1 - reg)}px)` }}>
-              <Person who="anna" name="Anna" role="Operations lead" x={SM.anna + 30} y={SM.y - 82} p={tw(f, 16, 46) * (1 - tw(f, t.regroup[0], t.regroup[0] + 20))} />
+              <Person who="anna" name="Anna" role="Operations lead" x={SM.anna + 30} y={sy('anna') - 82} p={tw(f, 16, 46) * (1 - tw(f, t.regroup[0], t.regroup[0] + 20))} />
               <Chat x={AR.x} y={AR.y} w={AR.w} h={AR.h} title="Travel policy" who="anna" tag={reg > 0.6 ? <Tag who="anna">Anna · Owner</Tag> : null}>
                 <div style={{ position: 'relative', height: 10 }}>
                   <div style={{ position: 'absolute', left: 0, top: 0, width: INNER, transform: `scale(${(AR.w - 76) * 0.88 / INNER})`, transformOrigin: '0 0' }}>
@@ -186,23 +215,23 @@ export const Team = () => {
                       <Ed w={'100%'} mk={null} page={<Page mk={null} />} />
                     </div>
                     <div style={{ position: 'absolute', left: 0, top: 0, width: INNER, opacity: tw(f, t.regroup[0] + 10, t.regroup[0] + 40) }}>
-                      <Ed w={'100%'} mk={null} side={cards} sideW={340} page={page} bodyH={640} bodyScroll={BS} />
+                      <Ed w={'100%'} mk={null} side={cards} sideW={SW} page={page} bodyH={BH} bodyScroll={BS} />
                     </div>
                   </div>
                 </div>
               </Chat>
             </div>
             {/* invisible twin at the final size, only for measuring layout */}
-            <div ref={ref} style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, visibility: 'hidden' }}>
+            <div ref={ref} style={{ position: 'absolute', left: 0, top: 0, width: fm.W, height: fm.H, visibility: 'hidden' }}>
               <Chat x={BIG.x} y={BIG.y} w={BIG.w} h={BIG.h} title="Travel policy" who="anna" tag={<Tag who="anna">Anna · Owner</Tag>}>
-                <Ed w={'100%'} side={<div />} sideW={340} page={page} bodyH={640} />
+                <Ed w={'100%'} side={<div />} sideW={SW} page={page} bodyH={BH} />
               </Chat>
             </div>
           </div>
           <div style={{ position: 'absolute', inset: 0 }}>{flies}</div>
         </Cam>
       </Stage3D></SlideBlur>
-      <div ref={href} style={{ ...HL, top: HTOP[3] }}>
+      <div ref={href} style={{ ...hlStyle(fm, 3) }}>
         <div data-m="head" style={{ display: 'inline-block' }}>
           <div><Words text="Your colleagues." f={f} at={cap} /></div>
           <div><Words text="Their ChatGPTs." f={f} at={cap + 22} /></div>

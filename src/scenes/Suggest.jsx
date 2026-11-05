@@ -4,8 +4,10 @@ import { AbsoluteFill, useCurrentFrame } from 'remotion';
 import { C, ink, pur, F, E, tw, kf, drift, frameAt, shadow, HL, HTOP, headRight } from '../theme';
 import { Chat, Editor as Ed, Page, Ins, Del, Card, Icon, Stage3D, Cam, Cursor, Ring, cursorAt, pressAt, Words, useMeasure, Bubble, SlideBlur, slideSpeed } from '../ui';
 import { T, START, DUR, P, typed, K } from '../timeline';
+import { useFmt, hlStyle, headDock, dockMove, framer } from '../format';
 
-const WX = 210, WY = 70, WW = 1500, WH = 940;
+// chat window per format [x, y, w, h]; portrait keeps page and a narrower card column side by side
+const GEO = { land: [210, 70, 1500, 940], post: [20, 95, 1040, 1160], tall: [20, 380, 1040, 1160] };
 
 export const Suggest = () => {
   const f = useF();
@@ -14,10 +16,15 @@ export const Suggest = () => {
   const d = drift(g, 1, 4.1);
   const [ref, m] = useMeasure();
   const [href, hm] = useMeasure();
-  const TL = headRight(hm);
+  const fm = useFmt();
+  const [WX, WY, WW, WH] = GEO[fm.id];
+  const BH = WH - 300; // editor body height (640 in 16:9)
+  const dock = headDock(fm, hm, 3);
+  const mv = dockMove(fm, dock, WX, WY, WW, WH);
+  const CS = fm.portrait ? 112 : 94; // spacing between stacked suggestion cards
   const cd = Math.max(0, s.recede[0] + 0.8 * (s.recede[1] - s.recede[0]) - s.caption[0]);
   // scroll the editor body so section 3 sits at the bottom of the visible page, right above the composer
-  const BS = m && m.page && m.list ? Math.min(0, m.page.y + 596 - (m.list.y + m.list.h)) : 0;
+  const BS = m && m.page && m.list ? Math.min(0, m.page.y + BH - 44 - (m.list.y + m.list.h)) : 0;
   const sh = (r) => ({ ...r, y: r.y + BS, cy: r.cy + BS });
 
   const input = f < s.send ? typed(P.suggest, s.type, f) : '';
@@ -39,8 +46,8 @@ export const Suggest = () => {
     const L = sh(m.list), SD = sh(m.side);
     const tops = [];
     tops[2] = m.li2.y + BS - SD.y - 58;
-    tops[1] = tops[2] - 94;
-    tops[0] = tops[1] - 94;
+    tops[1] = tops[2] - CS;
+    tops[0] = tops[1] - CS;
     const top = (i) => tops[i];
     const cardOn = (i, at) => tw(f, at - 24, at - 8, 0, 1, E.out);
     cards = [
@@ -57,10 +64,11 @@ export const Suggest = () => {
     const bx = (i, k) => [SD.x + (k === 'ok' ? 241 : 274), SD.y + top(i) + 27];
     btn = { ok1: bx(0, 'ok'), no2: bx(1, 'no'), all: [m.acceptall.cx, m.acceptall.cy] };
     const midList = [(L.x + SD.x + SD.w) / 2, L.cy];
-    const c0 = frameAt((L.cx + m.composer.cx) / 2, (L.cy + m.composer.cy) / 2, 1.38);
-    const c1 = frameAt(midList[0], midList[1] - 50, 1.5);
-    const c2 = frameAt(980, 520, 1.1);
-    const c3 = frameAt(960, 540, 1);
+    const fa = framer(fm);
+    const c0 = fm.portrait ? fa(midList[0], WY + WH / 2, 1.18) : frameAt((L.cx + m.composer.cx) / 2, (L.cy + m.composer.cy) / 2, 1.38);
+    const c1 = fm.portrait ? fa(midList[0], midList[1] - 30, 1.27) : frameAt(midList[0], midList[1] - 50, 1.5);
+    const c2 = fm.portrait ? fa(WX + WW / 2, WY + WH / 2, 1.0) : frameAt(980, 520, 1.1);
+    const c3 = fm.portrait ? fa(fm.W / 2, fm.H / 2, 1) : frameAt(960, 540, 1);
     cam = kf(f, [
       [0, c0],
       [s.send + 6, c0],
@@ -83,15 +91,15 @@ export const Suggest = () => {
     cur = { cx, cy, o: tw(f, s.cards[2] + 8, s.cards[2] + 22) * (1 - tw(f, s.recede[0], s.recede[0] + 14)), press: pressAt(f, [s.accept1, s.reject2, s.acceptAll]) };
   }
   const recede = tw(f, s.recede[0], s.recede[1], 0, 1, E.inOut);
-  const grp = { x: recede * (TL - WX), y: recede * (150 - WY), s: 1, ry: -recede * 15, rx: recede * 3 };
+  const grp = { x: recede * mv.x, y: recede * mv.y, s: 1 + recede * (mv.s - 1), ry: -recede * 15, rx: recede * 3 };
   const bub = tw(f, s.bubble, s.bubble + 24, 0, 1, E.out) * (1 - tw(f, s.sugg[0] - 8, s.sugg[0] + 10, 0, 1, E.in));
 
   return (
     <AbsoluteFill style={{ background: C.bg }}>
-      <SlideBlur id="sb-suggest" v={0.4 * slideSpeed(f, s.recede, TL - WX, K.suggest, E.inOut)}><Stage3D persp={2200}>
+      <SlideBlur id="sb-suggest" v={0.4 * slideSpeed(f, s.recede, dock.x - WX, K.suggest, E.inOut)}><Stage3D persp={2200}>
         <Cam x={cam.x + d.x} y={cam.y + d.y} z={cam.z * d.s}>
-          <div style={{ position: 'absolute', inset: 0, transform: `translate(${grp.x}px, ${grp.y}px) scale(${grp.s}) rotateY(${grp.ry}deg) rotateX(${grp.rx}deg)`, transformOrigin: `${WX}px 540px`, transformStyle: 'preserve-3d' }}>
-            <div ref={ref} style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080 }}>
+          <div style={{ position: 'absolute', inset: 0, transform: `translate(${grp.x}px, ${grp.y}px) scale(${grp.s}) rotateY(${grp.ry}deg) rotateX(${grp.rx}deg)`, transformOrigin: fm.portrait ? `${WX}px ${WY}px` : `${WX}px 540px`, transformStyle: 'preserve-3d' }}>
+            <div ref={ref} style={{ position: 'absolute', left: 0, top: 0, width: fm.W, height: fm.H }}>
               <Chat x={WX} y={WY} w={WW} h={WH} title="Travel policy" who="anna" input={input} caret={f < s.send} f={f} send={tw(f, s.send - 4, s.send) * (1 - tw(f, s.send, s.send + 8))}>
                 <Ed
                   w={'100%'}
@@ -103,7 +111,8 @@ export const Suggest = () => {
                   }
                   side={cards || <div />}
                   page={<Page o={{ list }} />}
-                  bodyH={640}
+                  bodyH={BH}
+                  sideW={fm.portrait ? 260 : 300}
                   bodyScroll={BS}
                 />
               </Chat>
@@ -115,7 +124,7 @@ export const Suggest = () => {
           </div>
         </Cam>
       </Stage3D></SlideBlur>
-      <div ref={href} style={{ ...HL, top: HTOP[3] }}>
+      <div ref={href} style={{ ...hlStyle(fm, 3) }}>
         <div data-m="head" style={{ display: 'inline-block' }}>
           <div><Words text="Read it." f={f} at={s.caption[0] + cd} /></div>
           <div><Words text="Accept it." f={f} at={s.caption[1] + cd} /></div>

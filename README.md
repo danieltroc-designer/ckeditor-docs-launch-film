@@ -16,9 +16,16 @@ Full build:
 
 ```bash
 npm run audio           # rebuild music / voice / sound-effect stems from audio/ (no API calls)
-npm run render          # render all 7 scenes with motion blur -> out/picture.mp4 (~40 min on 2 cores)
+npm run render          # render all 7 scenes with motion blur -> out/picture.mp4 (parallel chunks; JOBS=n sets how many at once)
 npm run mix             # mix + mux -> out/CKEditor-Docs-launch-film.mp4
 npm run qa              # scan the result for shaking between frames
+```
+
+Portrait versions and higher resolution:
+
+```bash
+npm run render:all                     # 16:9, 4:5 (1080x1350) and 9:16 (1080x1920), rendered and mixed
+SCALE=2 npm run render:all -- 9x16     # one format at twice the resolution (2160x3840)
 ```
 
 Re-render a single scene after a change (the rest is reused from `out/scenes/`):
